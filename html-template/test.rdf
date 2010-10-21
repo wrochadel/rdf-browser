@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<rdf:RDF
+    xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+    xmlns:test="http://test#" > 
+  <rdf:Description rdf:about="element_1">
+    <rdf:type rdf:resource="http://test#Element"/>
+    <test:radius>100</test:radius>
+    <test:fill>100</test:fill>
+    <test:alpha>100</test:alpha>
+    <test:color>1</test:color>
+  </rdf:Description>
+  <rdf:Description rdf:about="element_2">
+    <rdf:type rdf:resource="http://test#Element"/>
+    <test:radius>80</test:radius>
+    <test:fill>80</test:fill>
+    <test:alpha>80</test:alpha>
+    <test:color>1</test:color>
+  </rdf:Description>
+  <rdf:Description rdf:about="element_3">
+    <rdf:type rdf:resource="http://test#Element"/>
+    <test:radius>50</test:radius>
+    <test:fill>20</test:fill>
+    <test:alpha>70</test:alpha>
+    <test:color>2</test:color>
+  </rdf:Description>
+  <test:Element rdf:about="element_4">
+    <test:radius>90</test:radius>
+    <test:fill>90</test:fill>
+    <test:alpha>20</test:alpha>
+    <test:color>3</test:color>
+  </test:Element>
+</rdf:RDF>
