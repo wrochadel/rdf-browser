@@ -1,0 +1,719 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+RDF Browser
+File: RDFBrowser.mxml
+Author: Fernando Tapia Rico
+Version: 1.0
+
+Copyright (C) 2010  Fernando Tapia Rico
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+-->
+
+<mx:Application xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute" styleName="plain" backgroundColor="0x666666" creationComplete="initApp()">
+  <mx:Style source="style/style.css"/>
+  <mx:Script>
+    <![CDATA[
+
+      import flash.events.Event;
+      import flash.net.SharedObject;
+      import mx.containers.ApplicationControlBar;
+      import mx.containers.TitleWindow;
+      import mx.controls.Alert;
+      import mx.controls.Button;
+      import mx.controls.CheckBox;
+      import mx.controls.ComboBox;
+      import mx.controls.LinkButton;
+      import mx.controls.dataGridClasses.DataGridColumn;
+      import mx.managers.PopUpManager;
+      import mx.rpc.events.FaultEvent;
+      import mx.rpc.events.ResultEvent;
+      import rdfbrowser.components.CanvasCluster;
+      import rdfbrowser.components.CanvasItem;
+      import rdfbrowser.components.FacetPanel;
+      import rdfbrowser.components.LoginWindow;
+  
+      /**
+       * Available properties array.
+       * 
+       * @default (empty array)
+       */
+      private var properties:Array = new Array();
+      /**
+       * Applied facets array. Structure: (property_name, FacetPanel object)
+       * 
+       * @default (empty array)
+       */
+      private var facets:Array = new Array();
+      /**
+       * Sources' URL array.
+       * 
+       * @default (empty array)
+       */
+      private var sources:Array = new Array();
+      /**
+       * XML with all the items.
+       * 
+       * @default <rdfbrowser_items></rdfbrowser_items>
+       */
+      private var rdfbrowser_items:XML = new XML("<rdfbrowser_items></rdfbrowser_items>");
+      /**
+       * XML with the items to represent.
+       * 
+       * @default <rdfbrowser_items></rdfbrowser_items>
+       */
+      private var displayItems:XML = new XML("<rdfbrowser_items></rdfbrowser_items>");
+      /**
+       * Class to represent. 
+       * All the elements <ns:Class></ns:Class> or 
+       * <rdf:Description><rdf:type rdf:resource="ns_url#Class"/></rdf:Description>
+       * will be represented.
+       * 
+       * @default (empty string)
+       */
+      private var mainClass:String = "";
+      /**
+       * Administrator's username (authentication).
+       * 
+       * @default admin
+       */
+      private var username:String = "admin";
+      /**
+       * Administrator's password (authentication).
+       * 
+       * @default admin
+       */
+      private var password:String = "admin";
+      /**
+       * Visualization parameters:
+       * 
+       * <ul>
+       * <li> <b>[0][0].</b> Property associated to the radius visualization parameter. </li>
+       * <li> <b>[1][0].</b> Property associated to the fill visualization parameter. </li>
+       * <li> <b>[2][0].</b> Property associated to the alpha visualization parameter. </li>
+       * <li> <b>[3][0].</b> Property associated to the color visualization parameter. </li>
+       * <li> <b>[x][1].</b> Count option: number of tags (true or false) </li>
+       * 
+       * @default [["---", false]["---", false]["---", false]["---", false]]
+       */
+      private var paramsGraph:Array = new Array(
+        new Array("--", false),
+        new Array("--", false),
+        new Array("--", false),
+        new Array("--", false)
+      );
+      /**
+       * Administrator's login window.
+       */
+      private var login:LoginWindow;
+
+
+      /**
+       * This function initialize the application
+       */
+      public function initApp():void {
+        // Set "setLogin" variable to "true" to activate administrator role.
+        var setLogin:Boolean = false;
+        if (usernameInput == null || passwordInput == null || mainClassInput == null || mainClassButton == null || sourceURL == null) {
+          Alert.show("Loading Problems. Reload it");
+        }
+        else {
+          // Load initial settings
+          loadData.send();
+          navigatorBrowser.selectedIndex = 1;
+          if (!setLogin) {
+            // Hide all administrator components.
+            settings.enabled = true; 
+            loginAdmin.visible = false;
+            saveSettingsButton.visible = false;
+            logoutButton.visible = false;
+          }
+        }
+      }
+      
+      /*
+      **************************************
+      **************************************
+      **************** LOGIN ***************
+      **************************************
+      **************************************/
+      
+      /**
+       * This function creates a login window.
+       * It manages administrator login.
+       */
+      private function showLoginWindow():void {
+        login = LoginWindow(PopUpManager.createPopUp(this, LoginWindow, true));
+        PopUpManager.centerPopUp(login);
+        login["loginButton"].addEventListener("click", adminLogin);
+      }
+    
+      /**
+       * This function manages the administrator login.
+       * 
+       * @param event Event.
+       */
+      private function adminLogin(event:Event):void {
+        PopUpManager.removePopUp(login);
+        // Check the authentication data
+        if (username == login.username.text && password == login.password.text) {
+          settings.enabled = true;    
+          navigatorBrowser.selectedIndex = 0;
+          loginAdmin.visible = false;
+        } 
+        else {
+          Alert.show("Username and/or password incorrect. Try again");
+        }
+      }
+      
+      /**
+       * This function manages the administrator logout.
+       */
+      private function adminLogout():void {
+        navigatorBrowser.selectedIndex = 1;
+        settings.enabled = false; 
+        loginAdmin.visible = true;
+      }
+      
+      /*
+      **************************************
+      **************************************
+      ************** SETTINGS **************
+      **************************************
+      **************************************/
+      
+      /**
+       * Callback function which manages the initialization process.
+       * Settings configuration.
+       * 
+       * @parama e Event.
+       */ 
+      private function initHandleResult(e:ResultEvent):void {
+        var result:XML = e.result as XML;
+        username = result.username;
+        password = result.password;
+        usernameInput.text = username;
+        passwordInput.text = password;
+        mainClassInput.text = result.mainclass;
+        paramsGraph = new Array(
+          new Array(result.radius.field, (String(result.radius.count) == "true" ? true : false)),
+          new Array(result.fill.field, (String(result.radius.count) == "true" ? true : false)),
+          new Array(result.alpha.field, (String(result.radius.count) == "true" ? true : false)),
+          new Array(result.color, false)
+        );
+        showParameters();
+        setMainClass();
+        var params:Object = {};
+        sources = String(result.source).split("-s-e-p-a-r-a-t-o-r-");
+        sourceList.dataProvider = sources;
+        params["sources"] = escape(String(result.source));
+        params["class"] = escape(result.mainclass);
+        params["properties"] = escape("---");
+        receiver.send(params);
+      }
+      
+      /**
+       * This function saves the administrator settings.
+       */
+      private function saveSettings():void {
+        if (paramsRadius.text == "") {
+          Alert.show("Parameters must be set first");
+        }
+        else {
+          // Prepare the data to the PHP script "saver.php"
+          var params:Object = {};
+          params["class"] = escape(mainClass);
+          params["sources"] = escape(sources.join("-s-e-p-a-r-a-t-o-r-"));
+          params["params"] = escape(paramsGraph[0][0] + "-s-e-p-a-r-a-t-o-r-" + paramsGraph[0][1] + "-s-e-p-a-r-a-t-o-r-" +
+            paramsGraph[1][0] + "-s-e-p-a-r-a-t-o-r-" + paramsGraph[1][1] + "-s-e-p-a-r-a-t-o-r-" +
+            paramsGraph[2][0] + "-s-e-p-a-r-a-t-o-r-" + paramsGraph[2][1] + "-s-e-p-a-r-a-t-o-r-" +
+            paramsGraph[3][0]);
+          username = usernameInput.text;
+          password = passwordInput.text;
+          params["username"] = escape(username);
+          params["password"] = escape(password);
+          saveData.send(params);
+        }
+      }
+      
+      /**
+       * This function sets the class to represent.
+       */
+      private function setMainClass():void {
+        if (mainClassInput.enabled) {
+          mainClass = mainClassInput.text;
+          mainClassButton.label = "Edit";
+          mainClassInput.enabled = false;
+        }
+        else {
+          // Delete data, sources, facets and properties:
+          // The new class should have different ones.
+          rdfbrowser_items = new XML("<rdfbrowser_items></rdfbrowser_items>");
+          displayItems = new XML("<rdfbrowser_items></rdfbrowser_items>");
+          facetsPanel.removeAllChildren();
+          facets = new Array();
+          properties = new Array("---");
+          sources = new Array();
+          sourceList.dataProvider = sources;
+          mainClass = mainClassInput.text;
+          mainClassButton.label = "Set";
+          mainClassInput.enabled = true; 
+          canvas.removeAllChildren();
+        }
+      }
+      
+      /**
+       * This function sets the visualization parameters.
+       */
+      private function setParameters():void {
+        if (sources.length <= 0) {
+          Alert.show("You need to load data sources first");
+        }
+        else {
+          paramsGraph = new Array(
+            new Array(radiusCombo.selectedLabel, radiusCount.selected),
+            new Array(fillCombo.selectedLabel, fillCount.selected),
+            new Array(alphaCombo.selectedLabel, alphaCount.selected),
+            new Array(colorCombo.selectedLabel, false)
+          );
+          showParameters();
+          displayData();
+        }
+      }
+      
+      /**
+       * This function updates the settings view 
+       * (visualizaction parameters section).
+       */
+      private function showParameters():void {
+        paramsRadius.text = paramsGraph[0][1] ? paramsGraph[0][0]+ " [Count]":paramsGraph[0][0];
+        paramsFill.text = paramsGraph[1][1] ? paramsGraph[1][0]+ " [Count]":paramsGraph[1][0];
+        paramsAlpha.text = paramsGraph[2][1] ? paramsGraph[2][0]+ " [Count]":paramsGraph[2][0];
+        paramsColor.text = paramsGraph[3][0];
+      }
+      
+      /*
+      **************************************
+      **************************************
+      ********** DATA MANAGEMENT ***********
+      **************************************
+      **************************************/
+      
+      /**
+       * This function deletes an URL. 
+       * It updates the "rdfbrowser_items" XML.
+       */
+      private function deleteURL():void {
+        var urlToDelete:String = sourceList.selectedItem.toString();
+        sources.splice(sourceList.selectedIndex, 1);
+        sourceList.dataProvider = sources;
+        var output:String = "<rdfbrowser_items>";
+        for (var x:int = 0; x < rdfbrowser_items.child('rdfbrowser_class_item').length(); x++) {
+          if (String(rdfbrowser_items.child('rdfbrowser_class_item')[x].child('rdfbrowser_source')[0]) != urlToDelete) {
+            output += XML(rdfbrowser_items.child('rdfbrowser_class_item')[x]).toXMLString();
+          }
+        }
+        output += "</rdfbrowser_items>";
+        rdfbrowser_items = new XML(output);
+        displayData();
+      }
+      
+      /**
+       * This function calls the "dataManager.php" PHP script to
+       * extract the elements from an URL.
+       */
+      private function loadURL():void {
+        if (mainClassInput.enabled) {
+          Alert.show("A main class must be defined");
+        }
+        else {
+          // Check if the source is already loaded.
+          if (sources.indexOf(sourceURL.text) < 0) {
+            sources.push(sourceURL.text);
+            sourceList.dataProvider = sources;
+            var params:Object = {};
+            params["sources"] = escape(sourceURL.text);
+            params["class"] = escape(mainClass);
+            params["properties"] = escape(properties.join("-s-e-p-a-r-a-t-o-r-"));
+            receiver.send(params);
+          }
+          else {
+            Alert.show("Source already loaded");
+          }
+        }
+      }
+      
+      /**
+       * Callback function which manages the data extracted from a URL
+       * (HTTPService response). This function also updates the settings 
+       * view (parameters  and facets comboboxes).
+       *
+       * @param e Event.
+       */
+      private function handleResult(e:ResultEvent):void {
+        var root:XML = e.result as XML;
+        if (String(root.result) == "OK") {
+          rdfbrowser_items = new XML("<rdfbrowser_items>" + rdfbrowser_items.rdfbrowser_class_item + root.rdfbrowser_items.rdfbrowser_class_item + "</rdfbrowser_items>");
+          var rdfbrowser_properties:String = root.rdfbrowser_properties;
+          properties = rdfbrowser_properties.split("-s-e-p-a-r-a-t-o-r-"); 
+          displayData();
+          radiusCombo.dataProvider = properties;
+          fillCombo.dataProvider = properties;
+          alphaCombo.dataProvider = properties;
+          colorCombo.dataProvider = properties.concat(new Array("rdfbrowser_source"));
+          facetCombo.dataProvider = properties.concat(new Array("rdfbrowser_source"));
+        }
+        else {
+          Alert.show("Error:" + root.result);
+          sources.pop();
+          sourceList.dataProvider = sources;
+        }
+      }
+      
+      /*
+      **************************************
+      **************************************
+      ************ TABULAR VIEW ************
+      **************************************
+      **************************************/
+      
+      /**
+       * This function updates the data provide of the
+       * tabular view item.
+       */
+      private function fillDataGrid():void {
+        createDataGridColumns();
+        dataView.dataProvider = displayItems.child('rdfbrowser_class_item');
+      }
+      
+      /**
+       * This function creates the columns for the
+       * tabular view.
+       */
+      private function createDataGridColumns():void {
+        var columns:Array = new Array(); 
+        var columnSource:DataGridColumn = new DataGridColumn(); 
+        columnSource.dataField = "rdfbrowser_source";
+        columns.push(columnSource);
+        for (var x:int = 0; x < properties.length; x++) {
+          if (properties[x] != "---") {
+            var newColumn:DataGridColumn = new DataGridColumn(); 
+            newColumn.dataField = properties[x]; 
+            columns.push(newColumn); 
+          }
+        } 
+        dataView.columns = columns;
+      }
+      
+      /*
+      **************************************
+      **************************************
+      ******** DATA VISUALIZATION **********
+      **************************************
+      **************************************/
+      
+      /**
+       * This function creates the visualization space.
+       * It creates the CanvasItem elements used by
+       * the CanvasCluster object. It also obtains
+       * the maximum values for each visualization parameter.
+       */
+      public function displayData():void {
+        // Clean up the canvas
+        canvas.removeAllChildren();
+        // Update facets and items to display.
+        setFacets();
+        var clusters:Array = new Array();
+        var colors:Array = new Array();
+        var maxRadius:Number = 0;
+        var maxFill:Number = 0;
+        var maxAlpha:Number = 0;
+        var count:int = -1;
+        for (var x:int = 0; x < displayItems.child('rdfbrowser_class_item').length(); x++) {
+          var radius:int = 0;
+          var fill:int = 0;
+          var alpha:int = 0;
+          var title:String = "";  
+          title = displayItems.child('rdfbrowser_class_item')[x].toString();
+          // paramsGraph[*][1] = Count option: number of tags.
+          if (paramsGraph[0][1]) {
+            radius = displayItems.child('rdfbrowser_class_item')[x].child(paramsGraph[0][0]).length();
+          }
+          else {
+            radius = displayItems.child('rdfbrowser_class_item')[x].child(paramsGraph[0][0])[0];
+          }
+          if (paramsGraph[1][1]) {
+            fill = displayItems.child('rdfbrowser_class_item')[x].child(paramsGraph[1][0]).length();
+          }
+          else {
+            fill = displayItems.child('rdfbrowser_class_item')[x].child(paramsGraph[1][0])[0];
+          }
+          if (paramsGraph[2][1]) {
+            alpha = displayItems.child('rdfbrowser_class_item')[x].child(paramsGraph[2][0]).length();
+          }
+          else {
+            alpha = displayItems.child('rdfbrowser_class_item')[x].child(paramsGraph[2][0])[0];
+          }
+          if (colors.indexOf(String(displayItems.child('rdfbrowser_class_item')[x].child(paramsGraph[3][0])[0])) < 0) {
+            count++;
+            colors.push(String(displayItems.child('rdfbrowser_class_item')[x].child(paramsGraph[3][0])[0]));
+          }
+          if (maxRadius < radius) {
+            maxRadius = radius;
+          }
+          if (maxFill < fill) {
+            maxFill = fill;
+          }
+          if (maxAlpha < alpha) {
+            maxAlpha = alpha;
+          }
+          clusters.push(new CanvasItem(radius, fill, alpha, count, title));
+        }
+        // Update all the items with the maximum values.
+        for (var y:int = 0; y < clusters.length; y++) {
+          (CanvasItem)(clusters[y]).setRadius(maxRadius);
+          (CanvasItem)(clusters[y]).setFill(maxFill);
+          (CanvasItem)(clusters[y]).setAlpha(maxAlpha);
+        }
+        // Create a CanvasCluster object which draws the graph.
+        canvas.addChild(new CanvasCluster(clusters));
+      }
+      
+      /*
+      **************************************
+      **************************************
+      *************** FACETS ***************
+      **************************************
+      **************************************/
+      /**
+       * This function adds a facet.
+       */
+      private function addFacet():void {
+        if (facetCombo.selectedLabel != "---" && facets.indexOf(facetCombo.selectedLabel) < 0) {
+          var isParameter:Boolean = false;
+          if ( isParamGraph(facetCombo.selectedLabel) < 3) {
+            isParameter = true;
+          }
+          var panel:FacetPanel = new FacetPanel(facetCombo.selectedLabel, facetCount.selected, isParameter);
+          facetsPanel.addChild(panel);
+          // Update facets array.
+          facets.push(facetCombo.selectedLabel);
+          facets.push(panel);
+          setFacets();
+        }
+        else {
+          Alert.show("Facet already exists");
+        }
+      }
+      
+      /**
+       * This function removes a facet.
+       *
+       * @param facet The FacetPanel to remove.
+       */
+      public function removeFacet(facet:FacetPanel):void {
+        facets.splice(facets.indexOf(facet.facet), 2);
+        facetsPanel.removeChild(facet);
+        displayData();
+      }
+      
+      /**
+       * This function updates the facets view. 
+       */
+      public function facetComboChange():void {
+        if (isParamGraph(facetCombo.selectedLabel) < 3) {
+          facetCount.selected = paramsGraph[isParamGraph(facetCombo.selectedLabel)][1];
+          facetCount.enabled = false;
+        }
+        else if (String(paramsGraph[3][0]) == facetCombo.selectedLabel) {
+          facetCount.selected = false
+          facetCount.enabled = false;
+        }
+        else {
+          facetCount.selected = false
+          facetCount.enabled = true;
+        }
+      }
+      
+      /**
+       * This function checks if a property is a visualization
+       * parameter (radius, fill or alpha).
+       *
+       * @param property The property to check.
+       * @return 0:radius; 1:fill; 2:alpha; 3:is not a visualization parameter.
+       */
+      public function isParamGraph(property:String):int {
+        if (String(paramsGraph[0][0]) == property) return 0; 
+        if (String(paramsGraph[1][0]) == property) return 1; 
+        if (String(paramsGraph[2][0]) == property) return 2; 
+        return 3;
+      }
+      
+      /**
+       * This function filters the items, selects the ones to display
+       * and updates the facets.
+       */
+      public function setFacets():void {
+        displayItems = new XML("<rdfbrowser_items></rdfbrowser_items>");
+        var facetsToUpdate:Array = new Array();
+        // Explore all the items and filter them.
+        for (var x:int = 0; x < rdfbrowser_items.child('rdfbrowser_class_item').length(); x++) {
+          // filter: false:not to display the item; true: display the item.
+          var filter:Boolean = false;
+          for (var y:int = 0; y < facets.length; y++) {
+            var count:Boolean = (FacetPanel)(facets[y + 1]).count;
+            var isParameter:Boolean = (FacetPanel)(facets[y + 1]).isParameter;
+            var selected:Boolean = false;
+            // In case of textual facets, check if a value is selected on the list.
+            if (!count && !isParameter && (FacetPanel)(facets[y + 1]).list.selectedIndex >= 0) {
+              selected = true;
+            }
+            // Check for the type of facet
+            if (count || isParameter) {
+              // Numeric values
+              // In this case, facets must not be updated and items
+              // are filterd using the facetInputGT and facetInputLT components.
+              var value:Number = 0;
+              if (count) {
+                // Count option
+                value = Number(rdfbrowser_items.child('rdfbrowser_class_item')[x].child(facets[y]).length());
+              }
+              else {
+                // It's a visualization parameter (they has to be numeric values).
+                value = Number(rdfbrowser_items.child('rdfbrowser_class_item')[x].child(facets[y])[0]);
+              }
+              // Check if the value is between maximun and minimum values.
+              if ((value >= Number((FacetPanel)(facets[y + 1]).facetInputGT.text)) && (value <= Number((FacetPanel)(facets[y + 1]).facetInputLT.text))) {
+                filter = true;
+              }
+            }
+            else {
+              // Textual values
+              // In this case, facets must be updated if no item
+              // is selected on the list.
+              if (selected) {
+                // Check if the element matches the selected item on the facet's list.
+                if (String(rdfbrowser_items.child('rdfbrowser_class_item')[x].child(facets[y])[0]) != String((FacetPanel)(facets[y + 1]).list.selectedItem.toString())) {
+                  filter = true;
+                }
+              }
+              else {
+                if (facetsToUpdate.indexOf(y) < 0) {
+                  facetsToUpdate.push(y);
+                  (FacetPanel)(facets[y + 1]).list.dataProvider = new Array();
+                }
+              }
+            }
+            y++;  
+          }
+          if (!filter) {
+            displayItems = displayItems.appendChild(rdfbrowser_items.child('rdfbrowser_class_item')[x]);
+            // Update textual facets
+            for (var z:int = 0; z < facetsToUpdate.length; z++) {
+              var provider:Array = (FacetPanel)(facets[facetsToUpdate[z] + 1]).list.dataProvider.toArray();
+              if (provider.indexOf(String(rdfbrowser_items.child('rdfbrowser_class_item')[x].child(facets[facetsToUpdate[z]])[0])) < 0) {
+                provider.push(String(rdfbrowser_items.child('rdfbrowser_class_item')[x].child(facets[facetsToUpdate[z]])[0]));
+                (FacetPanel)(facets[facetsToUpdate[z] + 1]).list.dataProvider = provider;
+              }
+            }
+          }
+        }
+      }
+      
+    ]]>
+  </mx:Script>
+  
+  <mx:HTTPService url="dataManager.php" id="receiver" resultFormat="e4x" fault="Alert.show('Connection failed loading sources. Error: ' + event.fault.toString());" result="handleResult(event)" method="GET" />
+  <mx:HTTPService url="settings" id="loadData" resultFormat="e4x" fault="Alert.show('Connection failed. Initial settings are not loaded');" result="initHandleResult(event)" method="GET" />
+  <mx:HTTPService  id="saveData"  url="saver.php" resultFormat="e4x" method="GET" result="Alert.show(XML(event.result).message);" fault="Alert.show('Error saving settings');"/>
+  <mx:Button id="loginAdmin" label="Login" click="showLoginWindow()" right="105" width="60"/>
+  <mx:Button id="reload" label="Reload view" click="displayData()" right="10"/>
+  <mx:TabNavigator id="navigator" change="if (navigator.selectedIndex == 1) {fillDataGrid();} else {displayData();}" width="100%" height="100%">
+    <mx:Canvas label="Browser" width="100%" height="100%">
+      <mx:HBox>
+        <mx:Box>
+          <mx:Canvas>
+            <mx:TabNavigator id="navigatorBrowser" x="10" y="10" width="300" height="570">
+              <mx:Canvas label="Settings" id="settings" width="300" enabled="false">
+                <mx:ApplicationControlBar x="10" y="10" width="280">
+                  <mx:Label text="Main class: "/>
+                  <mx:TextInput id="mainClassInput" toolTip="Insert the name of the main class here" enter="setMainClass()" text="Idea" width="130"/>
+                  <mx:Button id="mainClassButton" label="Set" click="setMainClass()"/>
+                </mx:ApplicationControlBar>
+                <mx:Panel id="panelFilter" title="Data source" width="280" x="10" y="45" borderStyle="solid">
+                  <mx:VBox verticalGap="0">
+                    <mx:HBox horizontalGap="0">
+                      <mx:Box width="100%">
+                        <mx:TextInput id="sourceURL" toolTip="Insert the URL of the data source" enter="loadURL()" text="test.rdf" width="209" height="23"/>
+                      </mx:Box>
+                      <mx:Box>
+                        <mx:Button id="addSource" label="+" click="loadURL()"/>
+                      </mx:Box>
+                      <mx:Box>
+                        <mx:Button id="deleteSource" label="-" click="deleteURL()"/>
+                      </mx:Box> 
+                    </mx:HBox>
+                    <mx:Box>
+                      <mx:List id="sourceList" width="276" height="70" />
+                    </mx:Box>
+                  </mx:VBox>
+                </mx:Panel>
+                <mx:ApplicationControlBar x="10" y="175" width="280" height="65"/>
+                <mx:ApplicationControlBar x="10" y="245" width="280" height="65"/>
+                <mx:ApplicationControlBar x="10" y="315" width="280" height="65"/>
+                <mx:ApplicationControlBar x="10" y="385" width="280" height="65"/>
+                <mx:Label text="Radius: " x="15" y="185"/>
+                <mx:TextInput id="paramsRadius" width="200" x="80" y="182" enabled="false"/>
+                <mx:ComboBox id="radiusCombo" width="160" x="15" y="210"/>
+                <mx:CheckBox id="radiusCount" label="Count"  x="200" y="210"/>
+                <mx:Label text="Fill: " x="15" y="255"/>
+                <mx:TextInput id="paramsFill" width="200" x="80" y="252" enabled="false"/>
+                <mx:ComboBox id="fillCombo" width="160" x="15" y="280"/>
+                <mx:CheckBox id="fillCount" label="Count"  x="200" y="280"/>
+                <mx:Label text="Alpha: " x="15" y="325"/>
+                <mx:TextInput id="paramsAlpha" width="200" x="80" y="322" enabled="false"/>
+                <mx:ComboBox id="alphaCombo" width="160" x="15" y="350"/>
+                <mx:CheckBox id="alphaCount" label="Count"  x="200" y="350"/>
+                <mx:Label text="Color: " x="15" y="395"/>
+                <mx:TextInput id="paramsColor" width="200" x="80" y="392" enabled="false"/>
+                <mx:ComboBox id="colorCombo" width="265" x="15" y="420"/> 
+                <mx:Label text="Username:                     Password: " x="10" y="460"/>
+                <mx:TextInput id="usernameInput" width="135" x="10" y="480"/>
+                <mx:TextInput id="passwordInput" displayAsPassword="true" width="135" x="155" y="480"/>
+                <mx:Button label="Set Parameters" click="setParameters()" x="10" y="510"/>
+                <mx:Button id="saveSettingsButton" label="Save settings" click="saveSettings()" x="121" y="510"/>
+                <mx:Button id="logoutButton" label="Logout" click="adminLogout()" x="221" y="510"/>
+              </mx:Canvas>
+              <mx:Canvas label="Facets" width="300">
+                <mx:ApplicationControlBar id="facetBar" x="0" y="0" width="298">
+                  <mx:ComboBox id="facetCombo" width="160" change="facetComboChange()"/>
+                  <mx:CheckBox id="facetCount"/>
+                  <mx:Button id="facetAdder" label="+" click="addFacet()"/>
+                </mx:ApplicationControlBar>
+                <mx:Panel id="facetsPanel" title="Applied Facets" x="0" y="34" width="298" height="510"/>
+              </mx:Canvas>
+            </mx:TabNavigator>
+          </mx:Canvas>
+        </mx:Box>
+        <mx:Box>
+          <mx:Canvas id="canvas"/>
+        </mx:Box>
+      </mx:HBox>
+    </mx:Canvas>
+    <mx:Canvas label="Data" width="100%" height="100%">
+      <mx:DataGrid id="dataView" dataProvider="{new XML()}" width="100%" height="100%">
+      </mx:DataGrid>
+    </mx:Canvas>
+  </mx:TabNavigator>
+</mx:Application>

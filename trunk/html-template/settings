@@ -1,0 +1,1 @@
+<root><mainclass>Element</mainclass><source>test.rdf</source><radius><field>radius</field><count>false</count></radius><fill><field>fill</field><count>false</count></fill><alpha><field>alpha</field><count>false</count></alpha><color>color</color><username>admin</username><password>admin</password></root>
