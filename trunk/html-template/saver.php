@@ -2,8 +2,8 @@
 
   /**
   * Autor: Fernando Tapia Rico
-  * Version: 1.0
-  * Date: 30/09/2010
+  * Version: 1.1
+  * Date: 30/10/2010
   *
   * It saves the administrator settings into the 'settings' XML file
   *
@@ -24,7 +24,7 @@
   */
 
   set_error_handler('errorHandler');
-  $params = explode('-s-e-p-a-r-a-t-o-r-', urldecode(urldecode($_GET['params']);
+  $params = explode('-s-e-p-a-r-a-t-o-r-', urldecode($_GET['params']));
   $result = FALSE;
   if (count($params) == 7) {
     $file = 'settings';
@@ -47,7 +47,7 @@
   else {
     print('  <message>Settings saved successfully</message>' . "\n");
   }
-  print('</root>' . "\n");
+  print('</root>');
   exit();
 
   function errorHandler( $errno, $errstr, $errfile, $errline, $errcontext) {
@@ -56,7 +56,7 @@
     print('  <message>');
     print('Error: ' . print_r( $errstr, true) . ' . File ' . print_r( $errfile, true) . ' on line ' . print_r( $errline, true));
     print('</message>' . "\n");
-    print('</root>' . "\n");
+    print('</root>');
     exit();
   }
 ?>

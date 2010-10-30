@@ -28,6 +28,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
       import flash.events.Event;
       import flash.net.SharedObject;
+      
       import mx.containers.ApplicationControlBar;
       import mx.containers.TitleWindow;
       import mx.controls.Alert;
@@ -36,9 +37,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
       import mx.controls.ComboBox;
       import mx.controls.LinkButton;
       import mx.controls.dataGridClasses.DataGridColumn;
+      import mx.graphics.ImageSnapshot;
+      import mx.graphics.codec.PNGEncoder;
       import mx.managers.PopUpManager;
       import mx.rpc.events.FaultEvent;
       import mx.rpc.events.ResultEvent;
+      import mx.utils.Base64Decoder;
+      import mx.utils.ObjectUtil;
+      
       import rdfbrowser.components.CanvasCluster;
       import rdfbrowser.components.CanvasItem;
       import rdfbrowser.components.FacetPanel;
@@ -49,52 +55,49 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
        * 
        * @default (empty array)
        */
-      private var properties:Array = new Array();
+      public var properties:Array = new Array();
       /**
        * Applied facets array. Structure: (property_name, FacetPanel object)
        * 
        * @default (empty array)
        */
-      private var facets:Array = new Array();
+      public var facets:Array = new Array();
       /**
        * Sources' URL array.
        * 
        * @default (empty array)
        */
-      private var sources:Array = new Array();
+      public var sources:Array = new Array();
       /**
        * XML with all the items.
        * 
        * @default <rdfbrowser_items></rdfbrowser_items>
        */
-      private var rdfbrowser_items:XML = new XML("<rdfbrowser_items></rdfbrowser_items>");
+      public var rdfbrowser_items:XML = new XML("<rdfbrowser_items></rdfbrowser_items>");
       /**
        * XML with the items to represent.
        * 
        * @default <rdfbrowser_items></rdfbrowser_items>
        */
-      private var displayItems:XML = new XML("<rdfbrowser_items></rdfbrowser_items>");
+      public var displayItems:XML = new XML("<rdfbrowser_items></rdfbrowser_items>");
       /**
        * Class to represent. 
-       * All the elements <ns:Class></ns:Class> or 
-       * <rdf:Description><rdf:type rdf:resource="ns_url#Class"/></rdf:Description>
-       * will be represented.
        * 
        * @default (empty string)
        */
-      private var mainClass:String = "";
+      public var mainClass:String = "";
       /**
        * Administrator's username (authentication).
        * 
        * @default admin
        */
-      private var username:String = "admin";
+      public var username:String = "admin";
       /**
        * Administrator's password (authentication).
        * 
        * @default admin
        */
-      private var password:String = "admin";
+      public var password:String = "admin";
       /**
        * Visualization parameters:
        * 
@@ -104,27 +107,29 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
        * <li> <b>[2][0].</b> Property associated to the alpha visualization parameter. </li>
        * <li> <b>[3][0].</b> Property associated to the color visualization parameter. </li>
        * <li> <b>[x][1].</b> Count option: number of tags (true or false) </li>
+       * </ul>
        * 
        * @default [["---", false]["---", false]["---", false]["---", false]]
        */
-      private var paramsGraph:Array = new Array(
-        new Array("--", false),
-        new Array("--", false),
-        new Array("--", false),
-        new Array("--", false)
+      public var paramsGraph:Array = new Array(
+        new Array("---", false),
+        new Array("---", false),
+        new Array("---", false),
+        new Array("---", false)
       );
       /**
        * Administrator's login window.
        */
       private var login:LoginWindow;
-
+      private var normalColors:Array = new Array(0x11B5C1, 0xFBCB00, 0xD10D24, 0x09BD33, 0xD40DCD, 0xA14E06, 0x048A2E, 0x5B3199, 0xAD0942, 0xAAAAAA);
+      private var highlightedColors:Array = new Array(0x2F7082, 0xC5850B, 0xA1081A, 0x04781F, 0x9E0699, 0xDB6B09, 0x04D446, 0x8C53E0, 0xF70A5D, 0xDDDDDD);
 
       /**
        * This function initialize the application
        */
       public function initApp():void {
         // Set "setLogin" variable to "true" to activate administrator role.
-        var setLogin:Boolean = false;
+        var setLogin:Boolean = true;
         if (usernameInput == null || passwordInput == null || mainClassInput == null || mainClassButton == null || sourceURL == null) {
           Alert.show("Loading Problems. Reload it");
         }
@@ -226,7 +231,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
       /**
        * This function saves the administrator settings.
        */
-      private function saveSettings():void {
+      public function saveSettings():void {
         if (paramsRadius.text == "") {
           Alert.show("Parameters must be set first");
         }
@@ -250,7 +255,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
       /**
        * This function sets the class to represent.
        */
-      private function setMainClass():void {
+      public function setMainClass():void {
         if (mainClassInput.enabled) {
           mainClass = mainClassInput.text;
           mainClassButton.label = "Edit";
@@ -276,7 +281,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
       /**
        * This function sets the visualization parameters.
        */
-      private function setParameters():void {
+      public function setParameters():void {
         if (sources.length <= 0) {
           Alert.show("You need to load data sources first");
         }
@@ -296,7 +301,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
        * This function updates the settings view 
        * (visualizaction parameters section).
        */
-      private function showParameters():void {
+      public function showParameters():void {
         paramsRadius.text = paramsGraph[0][1] ? paramsGraph[0][0]+ " [Count]":paramsGraph[0][0];
         paramsFill.text = paramsGraph[1][1] ? paramsGraph[1][0]+ " [Count]":paramsGraph[1][0];
         paramsAlpha.text = paramsGraph[2][1] ? paramsGraph[2][0]+ " [Count]":paramsGraph[2][0];
@@ -314,7 +319,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
        * This function deletes an URL. 
        * It updates the "rdfbrowser_items" XML.
        */
-      private function deleteURL():void {
+      public function deleteURL():void {
         var urlToDelete:String = sourceList.selectedItem.toString();
         sources.splice(sourceList.selectedIndex, 1);
         sourceList.dataProvider = sources;
@@ -333,7 +338,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
        * This function calls the "dataManager.php" PHP script to
        * extract the elements from an URL.
        */
-      private function loadURL():void {
+      public function loadURL():void {
         if (mainClassInput.enabled) {
           Alert.show("A main class must be defined");
         }
@@ -357,7 +362,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
       /**
        * Callback function which manages the data extracted from a URL
        * (HTTPService response). This function also updates the settings 
-       * view (parameters  and facets comboboxes).
+       * view (parameters and facets comboboxes).
        *
        * @param e Event.
        */
@@ -392,7 +397,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
        * This function updates the data provide of the
        * tabular view item.
        */
-      private function fillDataGrid():void {
+      public function fillDataGrid():void {
         createDataGridColumns();
         dataView.dataProvider = displayItems.child('rdfbrowser_class_item');
       }
@@ -401,7 +406,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
        * This function creates the columns for the
        * tabular view.
        */
-      private function createDataGridColumns():void {
+      public function createDataGridColumns():void {
         var columns:Array = new Array(); 
         var columnSource:DataGridColumn = new DataGridColumn(); 
         columnSource.dataField = "rdfbrowser_source";
@@ -439,7 +444,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         var maxRadius:Number = 0;
         var maxFill:Number = 0;
         var maxAlpha:Number = 0;
-        var count:int = -1;
         for (var x:int = 0; x < displayItems.child('rdfbrowser_class_item').length(); x++) {
           var radius:int = 0;
           var fill:int = 0;
@@ -466,7 +470,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             alpha = displayItems.child('rdfbrowser_class_item')[x].child(paramsGraph[2][0])[0];
           }
           if (colors.indexOf(String(displayItems.child('rdfbrowser_class_item')[x].child(paramsGraph[3][0])[0])) < 0) {
-            count++;
             colors.push(String(displayItems.child('rdfbrowser_class_item')[x].child(paramsGraph[3][0])[0]));
           }
           if (maxRadius < radius) {
@@ -478,16 +481,114 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
           if (maxAlpha < alpha) {
             maxAlpha = alpha;
           }
-          clusters.push(new CanvasItem(radius, fill, alpha, count, title));
-        }
-        // Update all the items with the maximum values.
-        for (var y:int = 0; y < clusters.length; y++) {
-          (CanvasItem)(clusters[y]).setRadius(maxRadius);
-          (CanvasItem)(clusters[y]).setFill(maxFill);
-          (CanvasItem)(clusters[y]).setAlpha(maxAlpha);
+          var color:int = colors.indexOf(String(displayItems.child('rdfbrowser_class_item')[x].child(paramsGraph[3][0])[0]));
+          clusters.push(new CanvasItem(radius, fill, alpha, normalColors[color%10], highlightedColors[color%10], title));
         }
         // Create a CanvasCluster object which draws the graph.
-        canvas.addChild(new CanvasCluster(clusters));
+        var display:CanvasCluster = new CanvasCluster(clusters, maxRadius, maxFill, maxAlpha);
+        canvas.addChild(display);
+        var moveX:Number = 25 - display.getBounds(canvas).x;
+        var moveY:Number = 25 - display.getBounds(canvas).y;    
+        for (var y:int = 0; y < display.drawQueue.length; y++) {
+          display.drawQueue[y].move(display.drawQueue[y].x + moveX, display.drawQueue[y].y + moveY);
+        }
+        updateLegend(clusters.length, maxRadius, maxFill, maxAlpha, colors);
+        zoomHandler();
+      }
+      
+      /**
+       * This function exports to PNG the main canvas or
+       * the "Browser" window.
+       *
+       * @param type 0: main canvas; 1: "Browser" window
+       */
+      public function canvasToPNG(type:int):void {
+        var base64string:String = "";
+        if (type == 1) {
+          base64string = ImageSnapshot.encodeImageAsBase64( ImageSnapshot.captureImage(browserCanvas, 0, new PNGEncoder(), false));
+        }
+        else {
+          base64string = ImageSnapshot.encodeImageAsBase64( ImageSnapshot.captureImage(canvas.getChildAt(0), 0, new PNGEncoder(), false));
+        }
+        if (base64string != "") {
+          var imageString:Base64Decoder = new Base64Decoder();
+          imageString.decode(base64string);
+          var image:ByteArray = imageString.toByteArray()
+          var request:URLRequest = new URLRequest("DownloadImage.php");
+          request.data = image;
+          request.method = URLRequestMethod.POST;
+          navigateToURL(request);
+        }
+      }
+      
+      private function zoomHandler():void {
+        canvas.scaleX = HSlider.value/100;
+        canvas.scaleY = HSlider.value/100;
+      }
+      
+      /*
+      **************************************
+      **************************************
+      *************** LEGEND ***************
+      **************************************
+      **************************************/
+      
+      /**
+       * This function updates the legend information.
+       *
+       * @param count The property to check.
+       * @param maxRadius Maximum value of the "radius" property.
+       * @param maxFill Maximum value of the "fill" property.
+       * @param maxAlpha Maximum value of the "alpha" property.
+       * @param colors Array with the values of the "color" property.
+       */
+      public function updateLegend(count:int, maxRadius:Number, maxFill:Number, maxAlpha:Number, colors:Array):void {
+        legendCanvas.removeAllChildren();
+        var legendArray:Array = new Array();
+        legendArray.push(new Array("Number of \"" + mainClass + "\" items: " + count, 10, 10));
+        legendArray.push(new Array("Radius: ", 10, 40));
+        legendArray.push(new Array("+ Property: " + paramsRadius.text, 30, 60));
+        legendArray.push(new Array("+ Max. value: " + maxRadius, 30, 80));
+        legendArray.push(new Array("Fill: ", 10, 110));
+        legendArray.push(new Array("+ Property: " + paramsFill.text, 30, 130));
+        legendArray.push(new Array("+ Max. value: " + maxFill, 30, 150));
+        legendArray.push(new Array("Alpha: ", 10, 180));
+        legendArray.push(new Array("+ Property: " + paramsAlpha.text, 30, 200));
+        legendArray.push(new Array("+ Max. value: " + maxAlpha, 30, 220));
+        legendArray.push(new Array("Color: ", 10, 250));
+        legendArray.push(new Array("+ Property: " + paramsColor.text, 30, 270));
+        legendArray.push(new Array("+ Values: ", 30, 290));
+        for (var x:int = 0; x < legendArray.length; x++) {
+          var label:Label = new Label();
+          label.text = legendArray[x][0];
+          label.x = legendArray[x][1];
+          label.y = legendArray[x][2];
+          label.truncateToFit = true;
+          label.width = 250;
+          legendCanvas.addChild(label);
+        }
+        for (var y:int = 0; y < colors.length; y++) {
+          var colorCanvas:Canvas = new Canvas();
+          colorCanvas.width = 230;
+          colorCanvas.height = 20;
+          colorCanvas.x = 50;
+          colorCanvas.y = 310 + y*20;
+          colorCanvas.graphics.beginFill(normalColors[y%10]);
+          colorCanvas.graphics.drawCircle(10, 10, 5);
+          if (paramsGraph[1][0] != "---") {
+            colorCanvas.graphics.beginFill(highlightedColors[y%10]);
+            colorCanvas.graphics.drawCircle(10, 10, 3);
+          }
+          colorCanvas.graphics.endFill();
+          var labelColor:Label = new Label();
+          labelColor.text = colors[y];
+          labelColor.x = 20;
+          labelColor.y = 2;
+          labelColor.width = 200;
+          labelColor.truncateToFit = true;
+          colorCanvas.addChild(labelColor);
+          legendCanvas.addChild(colorCanvas);
+        }
       }
       
       /*
@@ -499,7 +600,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
       /**
        * This function adds a facet.
        */
-      private function addFacet():void {
+      public function addFacet():void {
         if (facetCombo.selectedLabel != "---" && facets.indexOf(facetCombo.selectedLabel) < 0) {
           var isParameter:Boolean = false;
           if ( isParamGraph(facetCombo.selectedLabel) < 3) {
@@ -634,77 +735,125 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     ]]>
   </mx:Script>
   
-  <mx:HTTPService url="dataManager.php" id="receiver" resultFormat="e4x" fault="Alert.show('Connection failed loading sources. Error: ' + event.fault.toString());" result="handleResult(event)" method="GET" />
-  <mx:HTTPService url="settings" id="loadData" resultFormat="e4x" fault="Alert.show('Connection failed. Initial settings are not loaded');" result="initHandleResult(event)" method="GET" />
-  <mx:HTTPService  id="saveData"  url="saver.php" resultFormat="e4x" method="GET" result="Alert.show(XML(event.result).message);" fault="Alert.show('Error saving settings');"/>
-  <mx:Button id="loginAdmin" label="Login" click="showLoginWindow()" right="105" width="60"/>
+  <mx:HTTPService
+    url="DataManager.php"
+    id="receiver"
+    resultFormat="e4x"
+    fault="Alert.show('Connection failed loading sources. Error: ' + event.fault.toString());"
+    result="handleResult(event)"
+    method="GET"
+  />
+  <mx:HTTPService
+    url="settings"
+    id="loadData"
+    resultFormat="e4x"
+    fault="Alert.show('Connection failed. Initial settings are not loaded. Error: ' + event.fault.toString());"
+    result="initHandleResult(event)"
+    method="GET"
+  />
+  <mx:HTTPService
+    id="saveData"
+    url="Saver.php"
+    resultFormat="e4x"
+    method="GET"
+    result="Alert.show(XML(event.result).message);"
+    fault="Alert.show('Error saving settings. Error: ' + event.fault.toString());"
+  />
+  <mx:Button id="loginAdmin" label="Login" click="showLoginWindow()" right="405"/>
+  <mx:Button label="Save to PNG (window)" click="canvasToPNG(1)" right="255"/>
+  <mx:Button label="Save to PNG (canvas)" click="canvasToPNG(0)" right="105"/>
   <mx:Button id="reload" label="Reload view" click="displayData()" right="10"/>
-  <mx:TabNavigator id="navigator" change="if (navigator.selectedIndex == 1) {fillDataGrid();} else {displayData();}" width="100%" height="100%">
-    <mx:Canvas label="Browser" width="100%" height="100%">
+  <mx:TabNavigator id="navigator" change="if (navigator.selectedIndex == 1) {fillDataGrid();}" width="100%" height="100%">
+    <mx:Canvas id="browserCanvas" label="Browser">
       <mx:HBox>
         <mx:Box>
-          <mx:Canvas>
-            <mx:TabNavigator id="navigatorBrowser" x="10" y="10" width="300" height="570">
-              <mx:Canvas label="Settings" id="settings" width="300" enabled="false">
-                <mx:ApplicationControlBar x="10" y="10" width="280">
-                  <mx:Label text="Main class: "/>
-                  <mx:TextInput id="mainClassInput" toolTip="Insert the name of the main class here" enter="setMainClass()" text="Idea" width="130"/>
-                  <mx:Button id="mainClassButton" label="Set" click="setMainClass()"/>
-                </mx:ApplicationControlBar>
-                <mx:Panel id="panelFilter" title="Data source" width="280" x="10" y="45" borderStyle="solid">
-                  <mx:VBox verticalGap="0">
-                    <mx:HBox horizontalGap="0">
-                      <mx:Box width="100%">
-                        <mx:TextInput id="sourceURL" toolTip="Insert the URL of the data source" enter="loadURL()" text="test.rdf" width="209" height="23"/>
-                      </mx:Box>
+          <mx:VBox>
+            <mx:Canvas>
+              <mx:TabNavigator id="navigatorBrowser" x="10" y="10" width="300" height="570">
+                <mx:Canvas label="Settings" id="settings" width="300" enabled="false">
+                  <mx:ApplicationControlBar x="10" y="10" width="280">
+                    <mx:Label text="Main class: "/>
+                    <mx:TextInput id="mainClassInput" toolTip="Insert the name of the main class here" enter="setMainClass()" text="Idea" width="130"/>
+                    <mx:Button id="mainClassButton" label="Set" click="setMainClass()"/>
+                  </mx:ApplicationControlBar>
+                  <mx:Panel id="panelFilter" title="Data source" width="280" x="10" y="45" borderStyle="solid">
+                    <mx:VBox verticalGap="0">
+                      <mx:HBox horizontalGap="0">
+                        <mx:Box width="100%">
+                          <mx:TextInput id="sourceURL" toolTip="Insert the URL of the data source" enter="loadURL()" text="test.rdf" width="209" height="23"/>
+                        </mx:Box>
+                        <mx:Box>
+                          <mx:Button id="addSource" label="+" click="loadURL()"/>
+                        </mx:Box>
+                        <mx:Box>
+                          <mx:Button id="deleteSource" label="-" click="deleteURL()"/>
+                        </mx:Box> 
+                      </mx:HBox>
                       <mx:Box>
-                        <mx:Button id="addSource" label="+" click="loadURL()"/>
+                        <mx:List id="sourceList" width="276" height="70" />
                       </mx:Box>
-                      <mx:Box>
-                        <mx:Button id="deleteSource" label="-" click="deleteURL()"/>
-                      </mx:Box> 
-                    </mx:HBox>
-                    <mx:Box>
-                      <mx:List id="sourceList" width="276" height="70" />
-                    </mx:Box>
-                  </mx:VBox>
-                </mx:Panel>
-                <mx:ApplicationControlBar x="10" y="175" width="280" height="65"/>
-                <mx:ApplicationControlBar x="10" y="245" width="280" height="65"/>
-                <mx:ApplicationControlBar x="10" y="315" width="280" height="65"/>
-                <mx:ApplicationControlBar x="10" y="385" width="280" height="65"/>
-                <mx:Label text="Radius: " x="15" y="185"/>
-                <mx:TextInput id="paramsRadius" width="200" x="80" y="182" enabled="false"/>
-                <mx:ComboBox id="radiusCombo" width="160" x="15" y="210"/>
-                <mx:CheckBox id="radiusCount" label="Count"  x="200" y="210"/>
-                <mx:Label text="Fill: " x="15" y="255"/>
-                <mx:TextInput id="paramsFill" width="200" x="80" y="252" enabled="false"/>
-                <mx:ComboBox id="fillCombo" width="160" x="15" y="280"/>
-                <mx:CheckBox id="fillCount" label="Count"  x="200" y="280"/>
-                <mx:Label text="Alpha: " x="15" y="325"/>
-                <mx:TextInput id="paramsAlpha" width="200" x="80" y="322" enabled="false"/>
-                <mx:ComboBox id="alphaCombo" width="160" x="15" y="350"/>
-                <mx:CheckBox id="alphaCount" label="Count"  x="200" y="350"/>
-                <mx:Label text="Color: " x="15" y="395"/>
-                <mx:TextInput id="paramsColor" width="200" x="80" y="392" enabled="false"/>
-                <mx:ComboBox id="colorCombo" width="265" x="15" y="420"/> 
-                <mx:Label text="Username:                     Password: " x="10" y="460"/>
-                <mx:TextInput id="usernameInput" width="135" x="10" y="480"/>
-                <mx:TextInput id="passwordInput" displayAsPassword="true" width="135" x="155" y="480"/>
-                <mx:Button label="Set Parameters" click="setParameters()" x="10" y="510"/>
-                <mx:Button id="saveSettingsButton" label="Save settings" click="saveSettings()" x="121" y="510"/>
-                <mx:Button id="logoutButton" label="Logout" click="adminLogout()" x="221" y="510"/>
-              </mx:Canvas>
-              <mx:Canvas label="Facets" width="300">
-                <mx:ApplicationControlBar id="facetBar" x="0" y="0" width="298">
-                  <mx:ComboBox id="facetCombo" width="160" change="facetComboChange()"/>
-                  <mx:CheckBox id="facetCount"/>
-                  <mx:Button id="facetAdder" label="+" click="addFacet()"/>
-                </mx:ApplicationControlBar>
-                <mx:Panel id="facetsPanel" title="Applied Facets" x="0" y="34" width="298" height="510"/>
-              </mx:Canvas>
-            </mx:TabNavigator>
-          </mx:Canvas>
+                    </mx:VBox>
+                  </mx:Panel>
+                  <mx:ApplicationControlBar x="10" y="175" width="280" height="65"/>
+                  <mx:ApplicationControlBar x="10" y="245" width="280" height="65"/>
+                  <mx:ApplicationControlBar x="10" y="315" width="280" height="65"/>
+                  <mx:ApplicationControlBar x="10" y="385" width="280" height="65"/>
+                  <mx:Label text="Radius: " x="15" y="185"/>
+                  <mx:TextInput id="paramsRadius" width="200" x="80" y="182" enabled="false"/>
+                  <mx:ComboBox id="radiusCombo" width="160" x="15" y="210"/>
+                  <mx:CheckBox id="radiusCount" label="Count"  x="200" y="210"/>
+                  <mx:Label text="Fill: " x="15" y="255"/>
+                  <mx:TextInput id="paramsFill" width="200" x="80" y="252" enabled="false"/>
+                  <mx:ComboBox id="fillCombo" width="160" x="15" y="280"/>
+                  <mx:CheckBox id="fillCount" label="Count"  x="200" y="280"/>
+                  <mx:Label text="Alpha: " x="15" y="325"/>
+                  <mx:TextInput id="paramsAlpha" width="200" x="80" y="322" enabled="false"/>
+                  <mx:ComboBox id="alphaCombo" width="160" x="15" y="350"/>
+                  <mx:CheckBox id="alphaCount" label="Count"  x="200" y="350"/>
+                  <mx:Label text="Color: " x="15" y="395"/>
+                  <mx:TextInput id="paramsColor" width="200" x="80" y="392" enabled="false"/>
+                  <mx:ComboBox id="colorCombo" width="265" x="15" y="420"/> 
+                  <mx:Label text="Username:                     Password: " x="10" y="460"/>
+                  <mx:TextInput id="usernameInput" width="135" x="10" y="480"/>
+                  <mx:TextInput id="passwordInput" displayAsPassword="true" width="135" x="155" y="480"/>
+                  <mx:Button label="Set Parameters" click="setParameters()" x="10" y="510"/>
+                  <mx:Button id="saveSettingsButton" label="Save settings" click="saveSettings()" x="121" y="510"/>
+                  <mx:Button id="logoutButton" label="Logout" click="adminLogout()" x="221" y="510"/>
+                </mx:Canvas>
+                <mx:Canvas label="Facets" width="300">
+                  <mx:ApplicationControlBar id="facetBar" x="0" y="0" width="298">
+                    <mx:ComboBox id="facetCombo" width="160" change="facetComboChange()"/>
+                    <mx:CheckBox id="facetCount"/>
+                    <mx:Button id="facetAdder" label="+" click="addFacet()"/>
+                  </mx:ApplicationControlBar>
+                  <mx:Panel id="facetsPanel" title="Applied Facets" x="0" y="34" width="298" height="510"/>
+                </mx:Canvas>
+                <mx:Canvas id="legendCanvas" label="Legend"/>    
+              </mx:TabNavigator>
+            </mx:Canvas>
+          </mx:VBox>
+          <mx:VBox>
+            <mx:Canvas id="zoomCanvas">
+              <mx:Label text="Zoom bar:" x="10" y="10" />
+              <mx:HSlider id="HSlider"
+                showDataTip = "true"
+                dataTipPlacement="top"
+                tickColor="black"
+                minimum="0"
+                maximum="200"
+                value = "100"
+                labels = "['0%','50%', '100%', '150%', '200%']"
+                snapInterval="5"
+                change="zoomHandler();"
+                tickValues = "[0, 25, 50, 75, 100, 125, 150, 175, 200]"
+                allowTrackClick="true"
+                width="300"
+                liveDragging="true"
+                x="10"
+                y="30"
+              />
+            </mx:Canvas>
+          </mx:VBox>
         </mx:Box>
         <mx:Box>
           <mx:Canvas id="canvas"/>
