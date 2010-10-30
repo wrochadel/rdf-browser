@@ -58,9 +58,6 @@ package rdfbrowser.components {
      * Value of the property associated to the color visualization parameter.
      */
     private var colorNormal:uint, colorHighlighted:uint;
-    private var normalColors:Array = new Array(0x11B5C1, 0xFBCB00, 0xD10D24, 0x09BD33, 0xD40DCD, 0xA14E06, 0x048A2E, 0x5B3199, 0xAD0942, 0xAAAAAA);
-    private var highlightedColors:Array = new Array(0x2F7082, 0xC5850B, 0xA1081A, 0x04781F, 0x9E0699, 0xDB6B09, 0x04D446, 0x8C53E0, 0xF70A5D, 0xDDDDDD);
-
 
     /**
      * CanvasItem class constructor.
@@ -72,14 +69,14 @@ package rdfbrowser.components {
      * @param colorHighlighted Color of the inner circle of the item.
      * @param title Shor description of the item.
      */
-    public function CanvasItem(radius:Number, fill:Number, transparency:Number, color:int, title:String) {
+    public function CanvasItem(radius:Number, fill:Number, transparency:Number, colorNormal:uint, colorHighlighted:uint, title:String) {
       super();
       this.radius = radius;
       this.fill = fill;
       this.transparency = transparency;
       this.title = title;
-      this.colorNormal = normalColors[color%10];
-      this.colorHighlighted = highlightedColors[color%10];
+      this.colorNormal = colorNormal;
+      this.colorHighlighted = colorHighlighted;
     }
     
     /**

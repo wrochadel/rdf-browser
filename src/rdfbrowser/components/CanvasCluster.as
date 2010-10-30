@@ -23,6 +23,7 @@ package rdfbrowser.components {
 
   import mx.containers.Canvas;
   import mx.controls.Alert;
+  import mx.controls.Label;
 
   /**
    * This class creates a canvas object which creates and contains 
@@ -43,31 +44,7 @@ package rdfbrowser.components {
      * 
      * @default null
      */
-    private var drawQueue:Array = null;
-    /**
-     * Minimum coordinate x of all the elements drawn.
-     * 
-     * @default 0
-     */
-    private var minimumWidth:Number = 0;
-    /**
-     * Maximum coordinate x of all the elements drawn.
-     * 
-     * @default 0
-     */
-    private var maximumWidth:Number = 0;
-    /**
-     * Minimum coordinate y of all the elements drawn.
-     * 
-     * @default 0
-     */
-    private var minimumHeight:Number = 0;
-    /**
-     * Maximum coordinate y of all the elements drawn.
-     * 
-     * @default 0
-     */
-    private var maximumHeight:Number = 0;
+    public var drawQueue:Array = null;
     /**
      * Counter to control the number of iterations.
      * It avoids infinite loops.
@@ -81,8 +58,8 @@ package rdfbrowser.components {
      * 
      * @param data Array of CanvasItem elements to draw.
      */
-    public function CanvasCluster(data:Array) {
-      process(data);
+    public function CanvasCluster(data:Array, maxRadius:Number, maxFill:Number, maxAlpha:Number) {
+      process(data, maxRadius, maxFill, maxAlpha);
     }
     
     /**
@@ -91,28 +68,13 @@ package rdfbrowser.components {
      * 
      * @param data Array of CanvasItem elements to draw.
      */
-    public function process(data:Array):void {
+    public function process(data:Array, maxRadius:Number, maxFill:Number, maxAlpha:Number):void {
       drawQueue = new Array();
-      minimumWidth = 0;
-      maximumWidth = 0;
-      maximumHeight = 0;
-      minimumHeight = 0;
       for (var x:int = 0; x < data.length; x++) {
+        (CanvasItem)(data[x]).setRadius(maxRadius);
+        (CanvasItem)(data[x]).setFill(maxFill);
+        (CanvasItem)(data[x]).setAlpha(maxAlpha);
         addCircle(data[x]);
-      }
-      if (((maximumWidth - minimumWidth)  > 650 || (maximumHeight - minimumHeight)  > 650 ) && counter < 5) {
-        // If the width of the representation is higher than 650px the process has to be repeated.
-        counter++;
-        this.process(data);
-      }
-      else {
-        this.height = (maximumHeight - minimumHeight) + 100;
-        this.width = (maximumWidth - minimumWidth) + 100;
-        for (var y:int = 0; y < drawQueue.length; y++) {
-          drawQueue[y].setXY(drawQueue[y].x - minimumWidth + 25, drawQueue[y].y - minimumHeight + 25);
-          drawQueue[y].draw();
-          this.addChild(drawQueue[y]);
-        }
       }
     }
     
@@ -123,7 +85,7 @@ package rdfbrowser.components {
      * 
      * @param element CanvasItem element to draw.
      */
-    private function addCircle (element:CanvasItem):void {
+     public function addCircle (element:CanvasItem):void {
       if (drawQueue.length == 0) {
         // The first element is placed on the center.
         element.setXY(0,0);
@@ -139,11 +101,9 @@ package rdfbrowser.components {
           element.setXY(sinAngle * radius, cosAngle * radius);
         }
       }
+      element.draw();
+      this.addChild(element);
       drawQueue.push(element);
-      if ((element.x - element.radius) < minimumWidth) minimumWidth = element.x - element.radius;
-      if ((element.x + element.radius) > maximumWidth) maximumWidth = element.x + element.radius;
-      if ((element.y - element.radius) < minimumHeight) minimumHeight = element.y - element.radius;
-      if ((element.y + element.radius) > maximumHeight) maximumHeight = element.y + element.radius;
     }
     
     /**
@@ -154,10 +114,10 @@ package rdfbrowser.components {
      * @return true: the element has points in common with other element (collision).<br/>
      *         false: the element has not points in common with other element.
      */
-    private function checkCollision(element:CanvasItem):Boolean {
+    public function checkCollision(element:CanvasItem):Boolean {
       for (var x:int = 0; x < drawQueue.length; x++) {
         // Check collision: distance between centers is lower than the sum of the radii.
-        if (Math.sqrt(Math.pow(drawQueue[x].x - element.x,2) + Math.pow(drawQueue[x].y - element.y,2)) <= (drawQueue[x].radius + element.radius)) {
+        if (Math.sqrt(Math.pow(drawQueue[x].x - element.x + drawQueue[x].radius - element.radius,2) + Math.pow(drawQueue[x].y - element.y + drawQueue[x].radius - element.radius,2)) <= (drawQueue[x].radius + element.radius)) {
           return true;
           break;
         }

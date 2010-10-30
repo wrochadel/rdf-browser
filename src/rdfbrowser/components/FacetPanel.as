@@ -20,7 +20,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 package rdfbrowser.components {
-    
+
   import flash.events.Event;
   import flash.events.MouseEvent;
   import mx.containers.Canvas;
@@ -62,11 +62,17 @@ package rdfbrowser.components {
      */
     public var list:List = null;
     /**
-     * Min. and Max. boundaries in case of numeric values.
+     * Minimum value limit in case of numeric values.
      * 
      * @default null 
      */
-    public var facetInputLT:TextInput, facetInputGT:TextInput = null;
+    public var facetInputLT:TextInput = null;
+    /**
+     * Maximum value limit in case of numeric values.
+     * 
+     * @default null 
+     */
+    public var facetInputGT:TextInput = null;
     /**
      * Close button. Removes the facet from the view.
      */
@@ -158,7 +164,7 @@ package rdfbrowser.components {
      * 
      * @param event Event.
      */
-    protected function removeFacet(event:Event):void {
+    public function removeFacet(event:Event):void {
       ParentApp.removeFacet(this);
     }
     
@@ -168,7 +174,7 @@ package rdfbrowser.components {
      * 
      * @param event Event.
      */
-    protected function displayData(event:Event):void {
+    public function displayData(event:Event):void {
       ParentApp.displayData();
     }
   }
