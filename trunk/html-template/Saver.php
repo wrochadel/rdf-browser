@@ -2,7 +2,7 @@
 
   /**
   * Autor: Fernando Tapia Rico
-  * Version: 1.1
+  * Version: 1.2
   * Date: 30/10/2010
   *
   * It saves the administrator settings into the 'settings' XML file

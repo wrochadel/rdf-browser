@@ -3,7 +3,7 @@
 RDF Browser
 File: RDFBrowser.mxml
 Author: Fernando Tapia Rico
-Version: 1.0
+Version: 1.2
 
 Copyright (C) 2010  Fernando Tapia Rico
 
@@ -129,7 +129,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
        */
       public function initApp():void {
         // Set "setLogin" variable to "true" to activate administrator role.
-        var setLogin:Boolean = true;
+        var setLogin:Boolean = false;
         if (usernameInput == null || passwordInput == null || mainClassInput == null || mainClassButton == null || sourceURL == null) {
           Alert.show("Loading Problems. Reload it");
         }
@@ -445,32 +445,40 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         var maxFill:Number = 0;
         var maxAlpha:Number = 0;
         for (var x:int = 0; x < displayItems.child('rdfbrowser_class_item').length(); x++) {
-          var radius:int = 0;
-          var fill:int = 0;
-          var alpha:int = 0;
+          var radius:Number = 0;
+          var fill:Number = 0;
+          var alpha:Number = 0;
           var title:String = "";  
           title = displayItems.child('rdfbrowser_class_item')[x].toString();
           // paramsGraph[*][1] = Count option: number of tags.
-          if (paramsGraph[0][1]) {
-            radius = displayItems.child('rdfbrowser_class_item')[x].child(paramsGraph[0][0]).length();
+          if (displayItems.child('rdfbrowser_class_item')[x].child(paramsGraph[0][0]).length() > 0) {
+            if (paramsGraph[0][1]) {
+              radius = Number(displayItems.child('rdfbrowser_class_item')[x].child(paramsGraph[0][0]).length());
+            }
+            else {
+              radius = Number(displayItems.child('rdfbrowser_class_item')[x].child(paramsGraph[0][0])[0]);
+            }
           }
-          else {
-            radius = displayItems.child('rdfbrowser_class_item')[x].child(paramsGraph[0][0])[0];
+          if (displayItems.child('rdfbrowser_class_item')[x].child(paramsGraph[1][0]).length() > 0) {
+            if (paramsGraph[1][1]) {
+              fill = Number(displayItems.child('rdfbrowser_class_item')[x].child(paramsGraph[1][0]).length());
+            }
+            else {
+              fill = Number(displayItems.child('rdfbrowser_class_item')[x].child(paramsGraph[1][0])[0]);
+            }
           }
-          if (paramsGraph[1][1]) {
-            fill = displayItems.child('rdfbrowser_class_item')[x].child(paramsGraph[1][0]).length();
+          if (displayItems.child('rdfbrowser_class_item')[x].child(paramsGraph[2][0]).length() > 0) {
+            if (paramsGraph[2][1]) {
+              alpha = Number(displayItems.child('rdfbrowser_class_item')[x].child(paramsGraph[2][0]).length());
+            }
+            else {
+              alpha = Number(displayItems.child('rdfbrowser_class_item')[x].child(paramsGraph[2][0])[0]);
+            }
           }
-          else {
-            fill = displayItems.child('rdfbrowser_class_item')[x].child(paramsGraph[1][0])[0];
-          }
-          if (paramsGraph[2][1]) {
-            alpha = displayItems.child('rdfbrowser_class_item')[x].child(paramsGraph[2][0]).length();
-          }
-          else {
-            alpha = displayItems.child('rdfbrowser_class_item')[x].child(paramsGraph[2][0])[0];
-          }
-          if (colors.indexOf(String(displayItems.child('rdfbrowser_class_item')[x].child(paramsGraph[3][0])[0])) < 0) {
-            colors.push(String(displayItems.child('rdfbrowser_class_item')[x].child(paramsGraph[3][0])[0]));
+          if (displayItems.child('rdfbrowser_class_item')[x].child(paramsGraph[3][0]).length() > 0) {
+            if (colors.indexOf(String(displayItems.child('rdfbrowser_class_item')[x].child(paramsGraph[3][0])[0])) < 0) {
+              colors.push(String(displayItems.child('rdfbrowser_class_item')[x].child(paramsGraph[3][0])[0]));
+            }
           }
           if (maxRadius < radius) {
             maxRadius = radius;

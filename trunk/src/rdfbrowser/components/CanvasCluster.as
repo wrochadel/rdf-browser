@@ -2,7 +2,7 @@
  * RDF Browser
  * File: CanvasCluster.as
  * Author: Fernando Tapia Rico
- * Version: 1.0
+ * Version: 1.2
  * 
  * Copyright (C) 2010  Fernando Tapia Rico
  * 
