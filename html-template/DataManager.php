@@ -1,7 +1,7 @@
 <?php
   /**
   * Autor: Fernando Tapia Rico
-  * Version: 1.1
+  * Version: 1.2
   * Date: 30/10/2010
   *
   * This file process the RDF sources.
