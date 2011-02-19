@@ -212,9 +212,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         passwordInput.text = password;
         mainClassInput.text = result.mainclass;
         paramsGraph = new Array(
-          new Array(result.radius.field, (String(result.radius.count) == "true" ? true : false)),
-          new Array(result.fill.field, (String(result.radius.count) == "true" ? true : false)),
-          new Array(result.alpha.field, (String(result.radius.count) == "true" ? true : false)),
+          new Array(result.radius.field, (String(result.radius.count) == "false" ? false : true)),
+          new Array(result.fill.field, (String(result.fill.count) == "false" ? false : true)),
+          new Array(result.alpha.field, (String(result.alpha.count) == "false" ? false : true)),
           new Array(result.color, false)
         );
         showParameters();
